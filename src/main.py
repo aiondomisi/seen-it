@@ -1,0 +1,113 @@
+import discord
+from discord.ext import commands
+from util.log import log
+from database.queries import init_database, save_message, save_link, find_link
+from dotenv import load_dotenv
+import os
+import re
+import json
+import asyncio
+from util.inspect_message import save_message_json
+
+load_dotenv()
+
+
+URL_PATTERN = re.compile(r"https?://[^\s<>]+")
+
+
+def return_links(message: str) -> list[str]:
+    return [url.rstrip(".,;:!?)]}'\"") for url in URL_PATTERN.findall(message)]
+
+
+async def handle_duplicate(message: discord.Message, duplicates: list):
+    lines = []
+    for _, msg_id, channel_id, author_id, created_at, guild_id in duplicates:
+        url = f"https://discord.com/channels/{guild_id}/{channel_id}/{msg_id}"
+        lines.append(f"{url} (posted by <@{author_id}> at {created_at})")
+
+    try:
+        await message.delete()
+    except (discord.Forbidden, discord.NotFound):
+        pass  # missing Manage Messages permission, or already deleted
+    try:
+        await message.channel.send(
+            f"{message.author.mention} your message was removed because the link was already posted:\n"
+            + "\n".join(lines),
+            delete_after=90,
+        )
+    except discord.Forbidden:
+        pass  # user has DMs closed
+
+
+class SeenIt(commands.Bot):
+    async def setup_hook(self):
+        await init_database()
+        log("Database initialized.")
+
+
+intents = discord.Intents.default()
+intents.message_content = True
+
+bot = SeenIt(command_prefix="!", intents=intents)
+
+
+@bot.event
+async def on_ready():
+    log(f"Logged is as {bot.user}")
+
+
+@bot.event
+async def on_message(message: discord.Message):
+    if message.author == bot.user:
+        return
+
+    parsing_url = message.content
+
+    if os.environ["USING_EMBED_FIXER"] == "True":
+        if message.application_id == 770144963735453696:
+            parsing_url = " ".join(
+                component.url
+                for row in message.components
+                for component in row.children
+                if component.url is not None
+            )
+            log(f"hehe parsing url : {parsing_url}")
+            pass  # Embed Fixer replacement: process it
+        else:
+            await asyncio.sleep(10)
+
+            try:
+                await message.channel.fetch_message(message.id)
+            except discord.NotFound:
+                return  # Original was deleted by Embed Fixer
+
+    log(f"here is the parsing url : {parsing_url}")
+    result = return_links(parsing_url)
+
+    if result:
+        duplicate_links = []
+        for link in result:
+            match = await find_link(link, message.guild.id)
+            if match:
+                duplicate_links.append(match)
+
+        print(f"here is the link {duplicate_links}")
+
+        if duplicate_links:
+            await handle_duplicate(message, duplicate_links)
+            return
+
+        row_id = await save_message(
+            message.guild.id,
+            message.channel.id,
+            message.id,
+            message.author.id,
+            message.created_at.strftime("%Y-%m-%d %H:%M:%S"),
+        )
+
+        if row_id:
+            for link in result:
+                await save_link(row_id, link)
+
+
+bot.run(os.environ["BOT_TOKEN"])
