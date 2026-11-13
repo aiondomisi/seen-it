@@ -8,6 +8,7 @@ import re
 import json
 import asyncio
 from util.inspect_message import save_message_json
+from discord.utils import MISSING
 
 load_dotenv()
 
@@ -30,10 +31,13 @@ async def handle_duplicate(message: discord.Message, duplicates: list):
     except (discord.Forbidden, discord.NotFound):
         pass  # missing Manage Messages permission, or already deleted
     try:
+        shame_duration = os.environ.get("SHAME_DURATION")
+        delete_after = float(shame_duration) if shame_duration else MISSING
+
         await message.channel.send(
             f"{message.author.mention} your message was removed because the link was already posted:\n"
             + "\n".join(lines),
-            delete_after=90,
+            delete_after=delete_after,
         )
     except discord.Forbidden:
         pass  # user has DMs closed
@@ -63,7 +67,7 @@ async def on_message(message: discord.Message):
 
     parsing_url = message.content
 
-    if os.environ["USING_EMBED_FIXER"] == "True":
+    if os.environ.get("USING_EMBED_FIXER") == "True":
         if message.application_id == 770144963735453696:
             parsing_url = " ".join(
                 component.url

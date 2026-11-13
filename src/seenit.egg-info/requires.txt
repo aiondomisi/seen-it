@@ -1,6 +1,0 @@
-discord.py
-aiosqlite
-aiohttp
-Pillow
-ImageHash
-python-dotenv

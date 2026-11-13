@@ -12,7 +12,8 @@ dependencies = [
     "aiohttp",
     "Pillow",
     "ImageHash",
-    "python-dotenv"
+    "python-dotenv",
+    "curl_cffi",
 ]
 
 [tool.setuptools.packages.find]

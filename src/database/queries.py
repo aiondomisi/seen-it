@@ -1,8 +1,9 @@
 import aiosqlite
 from util.normalizedUrl import normalize_url
 from util.resolverUrl import resolve_url
+import os
 
-DATABASE = "src/database/seenit.db"
+DATABASE = os.environ.get("DATABASE_PATH", "data/seenit.db")
 
 
 MIGRATIONS = [

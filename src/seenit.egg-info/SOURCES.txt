@@ -1,9 +1,0 @@
-pyproject.toml
-src/database/connection.py
-src/database/queries.py
-src/seenit.egg-info/PKG-INFO
-src/seenit.egg-info/SOURCES.txt
-src/seenit.egg-info/dependency_links.txt
-src/seenit.egg-info/requires.txt
-src/seenit.egg-info/top_level.txt
-src/util/log.py
