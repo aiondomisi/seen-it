@@ -63,7 +63,8 @@ async def handle_duplicate(message: discord.Message, duplicates: list):
 class SeenIt(commands.Bot):
     async def setup_hook(self):
         await init_database()
-        await self.tree.sync()
+        synced = await self.tree.sync()
+        log(f"Synced: {[c.name for c in synced]}")
         log("Database initialized.")
 
 
