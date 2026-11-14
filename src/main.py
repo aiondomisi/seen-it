@@ -15,8 +15,12 @@ from database.queries import (
     find_link,
     save_image,
     find_image,
+    add_custom_message,
+    get_random_custom_message,
 )
+from discord import app_commands
 from util.imageHash import hash_attachment
+from util.messageBuilder import build_message
 
 load_dotenv()
 
@@ -42,11 +46,14 @@ async def handle_duplicate(message: discord.Message, duplicates: list):
         shame_duration = os.environ.get("SHAME_DURATION")
         delete_after = float(shame_duration) if shame_duration else MISSING
 
-        await message.channel.send(
-            f"{message.author.mention} your message was removed because the link was already posted:\n"
-            + "\n".join(lines),
-            delete_after=delete_after,
+        template = await get_random_custom_message(message.guild.id)
+        content = (
+            build_message(template, message, duplicates)
+            if template
+            else f"{message.author.mention} your message was removed because the link was already posted:\n"
+            + "\n".join(lines)
         )
+        await message.channel.send(content, delete_after=delete_after)
     except discord.Forbidden:
         pass  # user has DMs closed
 
@@ -54,6 +61,7 @@ async def handle_duplicate(message: discord.Message, duplicates: list):
 class SeenIt(commands.Bot):
     async def setup_hook(self):
         await init_database()
+        await self.tree.sync()
         log("Database initialized.")
 
 
@@ -61,6 +69,20 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = SeenIt(command_prefix="!", intents=intents)
+
+
+@bot.tree.command(
+    name="addmessage",
+    description="Add a custom message shown when a duplicate is removed",
+)
+@app_commands.describe(
+    template="Insert this for placeholder @author.mention @original_author @created_at @channel @original_message @guild"
+)
+@app_commands.default_permissions(manage_guild=True)
+@app_commands.guild_only()
+async def addmessage(interaction: discord.Interaction, template: str):
+    await add_custom_message(interaction.guild_id, template)
+    await interaction.response.send_message("Custom message added.", ephemeral=True)
 
 
 @bot.event

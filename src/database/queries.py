@@ -46,6 +46,14 @@ MIGRATIONS = [
                 ON DELETE CASCADE
         );
     """,
+    # V3
+    """
+        CREATE TABLE IF NOT EXISTS custom_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            guild_id TEXT NOT NULL,
+            template TEXT NOT NULL
+        );
+    """,
 ]
 
 
@@ -188,3 +196,22 @@ async def find_image(image_hash: str, guild_id: int, channel_id: int):
         if bin(int(row[0], 16) ^ target).count("1") <= threshold:
             return row
     return None
+
+
+async def add_custom_message(guild_id: int, template: str):
+    async with aiosqlite.connect(DATABASE) as db:
+        await db.execute(
+            "INSERT INTO custom_messages (guild_id, template) VALUES (?, ?)",
+            (str(guild_id), template),
+        )
+        await db.commit()
+
+
+async def get_random_custom_message(guild_id: int) -> str | None:
+    async with aiosqlite.connect(DATABASE) as db:
+        async with db.execute(
+            "SELECT template FROM custom_messages WHERE guild_id = ? ORDER BY RANDOM() LIMIT 1",
+            (str(guild_id),),
+        ) as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else None
