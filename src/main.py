@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 from util.log import log
-from database.queries import init_database, save_message, save_link, find_link
 from dotenv import load_dotenv
 import os
 import re
@@ -9,6 +8,19 @@ import json
 import asyncio
 from util.inspect_message import save_message_json
 from discord.utils import MISSING
+from database.queries import (
+    init_database,
+    save_message,
+    save_link,
+    find_link,
+    save_image,
+    find_image,
+    add_custom_message,
+    get_random_custom_message,
+)
+from discord import app_commands
+from util.imageHash import hash_attachment
+from util.messageBuilder import build_message
 
 load_dotenv()
 
@@ -34,11 +46,14 @@ async def handle_duplicate(message: discord.Message, duplicates: list):
         shame_duration = os.environ.get("SHAME_DURATION")
         delete_after = float(shame_duration) if shame_duration else MISSING
 
-        await message.channel.send(
-            f"{message.author.mention} your message was removed because the link was already posted:\n"
-            + "\n".join(lines),
-            delete_after=delete_after,
+        template = await get_random_custom_message(message.guild.id)
+        content = (
+            build_message(template, message, duplicates)
+            if template
+            else f"{message.author.mention} your message was removed because the link was already posted:\n"
+            + "\n".join(lines)
         )
+        await message.channel.send(content, delete_after=delete_after)
     except discord.Forbidden:
         pass  # user has DMs closed
 
@@ -46,6 +61,7 @@ async def handle_duplicate(message: discord.Message, duplicates: list):
 class SeenIt(commands.Bot):
     async def setup_hook(self):
         await init_database()
+        await self.tree.sync()
         log("Database initialized.")
 
 
@@ -53,6 +69,20 @@ intents = discord.Intents.default()
 intents.message_content = True
 
 bot = SeenIt(command_prefix="!", intents=intents)
+
+
+@bot.tree.command(
+    name="addmessage",
+    description="Add a custom message shown when a duplicate is removed",
+)
+@app_commands.describe(
+    template="Insert this for placeholder @author.mention @original_author @created_at @channel @original_message @guild"
+)
+@app_commands.default_permissions(manage_guild=True)
+@app_commands.guild_only()
+async def addmessage(interaction: discord.Interaction, template: str):
+    await add_custom_message(interaction.guild_id, template)
+    await interaction.response.send_message("Custom message added.", ephemeral=True)
 
 
 @bot.event
@@ -78,7 +108,7 @@ async def on_message(message: discord.Message):
             log(f"hehe parsing url : {parsing_url}")
             pass  # Embed Fixer replacement: process it
         else:
-            await asyncio.sleep(10)
+            await asyncio.sleep(7)
 
             try:
                 await message.channel.fetch_message(message.id)
@@ -88,14 +118,23 @@ async def on_message(message: discord.Message):
     log(f"here is the parsing url : {parsing_url}")
     result = return_links(parsing_url)
 
-    if result:
+    hashes = []
+    for attachment in message.attachments:
+        image_hash = await hash_attachment(attachment)
+        if image_hash:
+            hashes.append(image_hash)
+
+    if result or hashes:
         duplicate_links = []
         for link in result:
-            match = await find_link(link, message.guild.id)
+            match = await find_link(link, message.guild.id, message.channel.id)
             if match:
                 duplicate_links.append(match)
 
-        print(f"here is the link {duplicate_links}")
+        for image_hash in hashes:
+            match = await find_image(image_hash, message.guild.id, message.channel.id)
+            if match:
+                duplicate_links.append(match)
 
         if duplicate_links:
             await handle_duplicate(message, duplicate_links)
@@ -112,6 +151,8 @@ async def on_message(message: discord.Message):
         if row_id:
             for link in result:
                 await save_link(row_id, link)
+            for image_hash in hashes:
+                await save_image(row_id, image_hash)
 
 
 bot.run(os.environ["BOT_TOKEN"])
