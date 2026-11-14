@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 from util.log import log
-from database.queries import init_database, save_message, save_link, find_link
 from dotenv import load_dotenv
 import os
 import re
@@ -9,6 +8,15 @@ import json
 import asyncio
 from util.inspect_message import save_message_json
 from discord.utils import MISSING
+from database.queries import (
+    init_database,
+    save_message,
+    save_link,
+    find_link,
+    save_image,
+    find_image,
+)
+from util.imageHash import hash_attachment
 
 load_dotenv()
 
@@ -78,7 +86,7 @@ async def on_message(message: discord.Message):
             log(f"hehe parsing url : {parsing_url}")
             pass  # Embed Fixer replacement: process it
         else:
-            await asyncio.sleep(10)
+            await asyncio.sleep(7)
 
             try:
                 await message.channel.fetch_message(message.id)
@@ -88,14 +96,23 @@ async def on_message(message: discord.Message):
     log(f"here is the parsing url : {parsing_url}")
     result = return_links(parsing_url)
 
-    if result:
+    hashes = []
+    for attachment in message.attachments:
+        image_hash = await hash_attachment(attachment)
+        if image_hash:
+            hashes.append(image_hash)
+
+    if result or hashes:
         duplicate_links = []
         for link in result:
-            match = await find_link(link, message.guild.id)
+            match = await find_link(link, message.guild.id, message.channel.id)
             if match:
                 duplicate_links.append(match)
 
-        print(f"here is the link {duplicate_links}")
+        for image_hash in hashes:
+            match = await find_image(image_hash, message.guild.id, message.channel.id)
+            if match:
+                duplicate_links.append(match)
 
         if duplicate_links:
             await handle_duplicate(message, duplicate_links)
@@ -112,6 +129,8 @@ async def on_message(message: discord.Message):
         if row_id:
             for link in result:
                 await save_link(row_id, link)
+            for image_hash in hashes:
+                await save_image(row_id, image_hash)
 
 
 bot.run(os.environ["BOT_TOKEN"])
