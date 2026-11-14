@@ -38,14 +38,14 @@ The SQLite database is created and migrated automatically on startup.
 
 Set these in `.env`:
 
-| Variable | Required | Description |
-| --- | --- | --- |
-| `BOT_TOKEN` | yes | Discord bot token |
-| `USING_EMBED_FIXER` | yes | `True` if an embed fixer bot is in the server, otherwise `False` |
-| `CHECKED_BY_CHANNEL` | no | `true` to only match duplicates posted in the same channel. Default: whole server |
-| `IMAGE_COMPARISON_THRESHOLD` | no | Max pHash bit difference (out of 64) to count two images as duplicates. Lower is stricter. Default: `5` |
-| `SHAME_DURATION` | no | Seconds before the bot's removal notice deletes itself. If unset, it stays |
-| `DATABASE_PATH` | no | SQLite file path. Default: `src/database/seenit.db` |
+| Variable                     | Required | Description                                                                                             |
+| ---------------------------- | -------- | ------------------------------------------------------------------------------------------------------- |
+| `BOT_TOKEN`                  | yes      | Discord bot token                                                                                       |
+| `USING_EMBED_FIXER`          | yes      | `True` if an embed fixer bot is in the server, otherwise `False`                                        |
+| `CHECKED_BY_CHANNEL`         | no       | `true` to only match duplicates posted in the same channel. Default: whole server                       |
+| `IMAGE_COMPARISON_THRESHOLD` | no       | Max pHash bit difference (out of 64) to count two images as duplicates. Lower is stricter. Default: `5` |
+| `SHAME_DURATION`             | no       | Seconds before the bot's removal notice deletes itself. If unset, it stays                              |
+| `DATABASE_PATH`              | no       | SQLite file path. Default: `src/database/seenit.db`                                                     |
 
 Example:
 
@@ -71,17 +71,22 @@ Add a removal message (requires Manage Server):
 /addmessage template:@author.mention already posted by @original_author at @created_at, see @original_message
 ```
 
+Manage them with:
+
+- `/listmessages` shows every custom message with its ID.
+- `/removemessage id:<id>` deletes one.
+
 If a server has several, one is chosen at random. With none, a default message is used.
 
-| Placeholder | Replaced with |
-| --- | --- |
-| `@author.mention` | Mention of the person who just posted |
-| `@author.name` | Display name of that person |
-| `@original_author` | Mention of the original poster |
-| `@created_at` | Time of the original post (shown in each viewer's timezone) |
-| `@channel` | Channel of the original post |
-| `@original_message` | Jump link(s) to the original message(s) |
-| `@guild` | Server name |
+| Placeholder         | Replaced with                                               |
+| ------------------- | ----------------------------------------------------------- |
+| `@author.mention`   | Mention of the person who just posted                       |
+| `@author.name`      | Display name of that person                                 |
+| `@original_author`  | Mention of the original poster                              |
+| `@created_at`       | Time of the original post (shown in each viewer's timezone) |
+| `@channel`          | Channel of the original post                                |
+| `@original_message` | Jump link(s) to the original message(s)                     |
+| `@guild`            | Server name                                                 |
 
 Unknown `@words` (like `@everyone`) are left as written.
 
@@ -114,7 +119,6 @@ services:
 ```
 
 Keep the database on a bind mount so rebuilds don't wipe saved links. After pulling new code, rebuild with `docker compose up -d --build`.
-
 
 ## Database migrations
 

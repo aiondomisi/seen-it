@@ -215,3 +215,22 @@ async def get_random_custom_message(guild_id: int) -> str | None:
         ) as cursor:
             row = await cursor.fetchone()
             return row[0] if row else None
+
+
+async def list_custom_messages(guild_id: int) -> list[tuple[int, str]]:
+    async with aiosqlite.connect(DATABASE) as db:
+        async with db.execute(
+            "SELECT id, template FROM custom_messages WHERE guild_id = ? ORDER BY id",
+            (str(guild_id),),
+        ) as cursor:
+            return await cursor.fetchall()
+
+
+async def delete_custom_message(guild_id: int, message_id: int) -> bool:
+    async with aiosqlite.connect(DATABASE) as db:
+        cursor = await db.execute(
+            "DELETE FROM custom_messages WHERE id = ? AND guild_id = ?",
+            (message_id, str(guild_id)),
+        )
+        await db.commit()
+        return cursor.rowcount > 0

@@ -17,6 +17,8 @@ from database.queries import (
     find_image,
     add_custom_message,
     get_random_custom_message,
+    delete_custom_message,
+    list_custom_messages,
 )
 from discord import app_commands
 from util.imageHash import hash_attachment
@@ -83,6 +85,33 @@ bot = SeenIt(command_prefix="!", intents=intents)
 async def addmessage(interaction: discord.Interaction, template: str):
     await add_custom_message(interaction.guild_id, template)
     await interaction.response.send_message("Custom message added.", ephemeral=True)
+
+
+@bot.tree.command(name="listmessages", description="List the custom duplicate messages")
+@app_commands.default_permissions(manage_guild=True)
+@app_commands.guild_only()
+async def listmessages(interaction: discord.Interaction):
+    rows = await list_custom_messages(interaction.guild_id)
+    if not rows:
+        await interaction.response.send_message(
+            "No custom messages yet.", ephemeral=True
+        )
+        return
+    text = "\n".join(f"`{id}` {template[:150]}" for id, template in rows)
+    await interaction.response.send_message(text[:2000], ephemeral=True)
+
+
+@bot.tree.command(
+    name="removemessage", description="Remove a custom duplicate message by its ID"
+)
+@app_commands.describe(id="The ID shown in /listmessages")
+@app_commands.default_permissions(manage_guild=True)
+@app_commands.guild_only()
+async def removemessage(interaction: discord.Interaction, id: int):
+    deleted = await delete_custom_message(interaction.guild_id, id)
+    await interaction.response.send_message(
+        "Removed." if deleted else "No message with that ID.", ephemeral=True
+    )
 
 
 @bot.event
