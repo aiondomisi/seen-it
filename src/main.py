@@ -128,22 +128,21 @@ async def on_message(message: discord.Message):
     parsing_url = message.content
 
     if os.environ.get("USING_EMBED_FIXER") == "True":
-        if message.application_id == 770144963735453696:
-            parsing_url = " ".join(
-                component.url
-                for row in message.components
-                for component in row.children
-                if component.url is not None
-            )
-            log(f"hehe parsing url : {parsing_url}")
-            pass  # Embed Fixer replacement: process it
-        else:
-            await asyncio.sleep(7)
+        parsing_url = " ".join(
+            component.url
+            for row in message.components
+            for component in row.children
+            if component.url is not None
+        )
+        log(f"hehe parsing url : {parsing_url}")
+        pass  # Embed Fixer replacement: process it
+    else:
+        await asyncio.sleep(7)
 
-            try:
-                await message.channel.fetch_message(message.id)
-            except discord.NotFound:
-                return  # Original was deleted by Embed Fixer
+        try:
+            await message.channel.fetch_message(message.id)
+        except discord.NotFound:
+            return  # Original was deleted by Embed Fixer
 
     log(f"here is the parsing url : {parsing_url}")
     result = return_links(parsing_url)
