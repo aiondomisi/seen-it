@@ -1,6 +1,6 @@
 # SeenIt
 
-A Discord bot that removes duplicate links and images. When someone posts something that was already posted, the bot deletes the message and replies with a pointer to the original.
+A Self-hosted Discord bot that removes duplicate links and images. When someone posts something that was already posted, the bot deletes the message and replies with a pointer to the original.
 
 ## Features
 
